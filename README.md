@@ -37,6 +37,12 @@ Key concepts:
 - **OrchestratorAPI**: Core orchestration contract
 - **CommunicationPort**: Abstraction for channel delivery
 
+## Running locally
+
+1. Install dependencies via `npm install` (this also pulls in Vite, React and React Flow).
+2. Start the dev server with `npm run dev` and open the URL shown by Vite (default `http://127.0.0.1:5173/`).
+3. The page renders the Modern Workflow Orchestrator layout, so you can drag the canvasset with React Flow and see the validation badge on the top-left.
+
 ## License
 
 SPDX-License-Identifier: AGPL-3.0-only

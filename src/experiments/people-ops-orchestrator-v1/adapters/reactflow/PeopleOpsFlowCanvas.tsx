@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (c) 2026 Hugo Soares Nascimento
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import ReactFlow, {
     Node,
     Edge,
@@ -90,12 +90,16 @@ const initialEdges: Edge[] = [
     },
 ];
 
-export const PeopleOpsFlowCanvas: React.FC = () => {
+interface PeopleOpsFlowCanvasProps {
+    className?: string;
+}
+
+export const PeopleOpsFlowCanvas: React.FC<PeopleOpsFlowCanvasProps> = ({ className }) => {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-    const orchestrator = new OrchestratorAPI();
+    const orchestrator = useMemo(() => new OrchestratorAPI(), []);
 
     // Convert ReactFlow nodes to FlowDefinition
     const convertToFlowDefinition = useCallback((): FlowDefinition => {
@@ -126,7 +130,10 @@ export const PeopleOpsFlowCanvas: React.FC = () => {
     );
 
     return (
-        <div style={{ width: '100vw', height: '100vh' }}>
+        <div
+            className={className}
+            style={{ position: 'relative', width: '100%', height: '100%' }}
+        >
             {/* Validation Output */}
             <div style={{
                 position: 'absolute',
@@ -162,6 +169,7 @@ export const PeopleOpsFlowCanvas: React.FC = () => {
                 onConnect={onConnect}
                 nodeTypes={nodeTypes}
                 fitView
+                style={{ width: "100%", height: "100%", background: "transparent" }}
             />
         </div>
     );
