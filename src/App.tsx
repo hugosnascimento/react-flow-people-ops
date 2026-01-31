@@ -17,6 +17,7 @@ import ReactFlow, {
   OnConnect
 } from "reactflow";
 import { OrchestratorAPI } from "./experiments/people-ops-orchestrator-v1/api/OrchestratorAPI";
+import { EvaClient } from "./experiments/people-ops-orchestrator-v1/api/EvaClient";
 import { FlowDefinition } from "./experiments/people-ops-orchestrator-v1/domain/FlowDefinition";
 import { CommunicationIntent } from "./experiments/people-ops-orchestrator-v1/domain/CommunicationIntent";
 
@@ -304,6 +305,52 @@ const AppContent: React.FC = () => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const orchestrator = useMemo(() => new OrchestratorAPI(), []);
+  const evaClient = useMemo(() => new EvaClient(), []);
+  const [evaStatus, setEvaStatus] = useState<{ tone: "neutral" | "success" | "error"; message: string }>({
+    tone: "neutral",
+    message: "No Eva requests yet."
+  });
+
+  const evaMocks = useMemo(
+    () => ({
+      startJourney: {
+        userId: "64b7f6f2a1b2c3d4e5f67890",
+        journeyId: "64b7f6f2a1b2c3d4e5f67891",
+        startDate: "2026-01-15T12:00:00.000Z"
+      },
+      startJourneyByTag: {
+        workspaceId: "64b7f6f2a1b2c3d4e5f67899",
+        journeyId: "64b7f6f2a1b2c3d4e5f67891",
+        tagId: "64b7f6f2a1b2c3d4e5f67900",
+        startDate: "2026-01-15T12:00:00.000Z"
+      },
+      cancelJourney: {
+        journeyId: "64b7f6f2a1b2c3d4e5f67891",
+        users: ["64b7f6f2a1b2c3d4e5f67890", "64b7f6f2a1b2c3d4e5f67892"]
+      }
+    }),
+    []
+  );
+
+  const runEvaAction = useCallback(
+    async (label: string, action: () => Promise<void>) => {
+      setEvaStatus({ tone: "neutral", message: `Running ${label}...` });
+      try {
+        await action();
+        setEvaStatus({ tone: "success", message: `${label} completed successfully.` });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setEvaStatus({ tone: "error", message: `${label} failed: ${message}` });
+      }
+    },
+    []
+  );
+  const evaStatusClass =
+    evaStatus.tone === "success"
+      ? "text-emerald-400"
+      : evaStatus.tone === "error"
+        ? "text-red-400"
+        : "text-slate-400";
 
   const addWorkflowNode = useCallback(
     (type: Node<WorkflowNodeData>["type"], baseData: WorkflowNodeData) => {
@@ -466,6 +513,62 @@ const AppContent: React.FC = () => {
                     <span className="text-[10px] text-slate-500">Property Comparison</span>
                   </div>
                 </button>
+              </div>
+            </section>
+            <section>
+              <h3 className="text-[10px] font-bold text-slate-500 mb-3 uppercase tracking-wider">
+                Eva Integration (Mocks)
+              </h3>
+              <div className="space-y-3">
+                <button
+                  className="w-full text-left p-3 bg-slate-800/40 border border-white/5 rounded-xl flex items-center gap-3 hover:bg-slate-700/60 transition-colors group"
+                  onClick={() =>
+                    runEvaAction("Start Journey", () => evaClient.startJourney(evaMocks.startJourney))
+                  }
+                >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${palette.emerald}`}>
+                    <span className="material-symbols-outlined text-xl">play_arrow</span>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-slate-200 block">Start Journey</span>
+                    <span className="text-[10px] text-slate-500">Single user trigger</span>
+                  </div>
+                </button>
+
+                <button
+                  className="w-full text-left p-3 bg-slate-800/40 border border-white/5 rounded-xl flex items-center gap-3 hover:bg-slate-700/60 transition-colors group"
+                  onClick={() =>
+                    runEvaAction("Start Journey by Tag", () =>
+                      evaClient.startJourneyByTag(evaMocks.startJourneyByTag)
+                    )
+                  }
+                >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${palette.orange}`}>
+                    <span className="material-symbols-outlined text-xl">sell</span>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-slate-200 block">Start Journey by Tag</span>
+                    <span className="text-[10px] text-slate-500">Bulk trigger by tag</span>
+                  </div>
+                </button>
+
+                <button
+                  className="w-full text-left p-3 bg-slate-800/40 border border-white/5 rounded-xl flex items-center gap-3 hover:bg-slate-700/60 transition-colors group"
+                  onClick={() =>
+                    runEvaAction("Cancel Journey", () => evaClient.cancelJourney(evaMocks.cancelJourney))
+                  }
+                >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${palette.red}`}>
+                    <span className="material-symbols-outlined text-xl">cancel</span>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-slate-200 block">Cancel Journey</span>
+                    <span className="text-[10px] text-slate-500">Unsubscribe users</span>
+                  </div>
+                </button>
+              </div>
+              <div className="mt-3 text-[10px] leading-relaxed text-slate-500">
+                <span className={`font-semibold ${evaStatusClass}`}>{evaStatus.message}</span>
               </div>
             </section>
           </div>
