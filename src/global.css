@@ -1,7 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+:root {
+  --primary: #4f39f6;
+  /* Eva Purple */
+  --primary-glow: rgba(79, 57, 246, 0.15);
+  --accent: #ff5a1f;
+  /* Eva Orange */
+  --canvas-bg: #f8fafc;
+  --panel-bg: rgba(255, 255, 255, 0.98);
+  --border-color: rgba(0, 0, 0, 0.06);
+  --text-main: #0f172a;
+  --text-muted: #64748b;
 }
 
 body,
@@ -10,19 +25,16 @@ html,
   min-height: 100%;
   font-family: "Inter", system-ui, sans-serif;
   margin: 0;
+  background-color: var(--canvas-bg);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
 }
 
-.dot-pattern {
-  background-image: radial-gradient(#334155 1px, transparent 1px);
+.bg-canvas-gradient {
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(#e2e8f0 1.2px, transparent 1.2px);
   background-size: 24px 24px;
-}
-
-.triangle-node {
-  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-}
-
-.hexagon-node {
-  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -34,44 +46,124 @@ html,
   scrollbar-width: none;
 }
 
-.flow-path {
-  stroke-dasharray: 8 6;
-  animation: flowAnimation 1.5s linear infinite;
+.shadow-premium {
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.05),
+    0 20px 25px -5px rgba(0, 0, 0, 0.05),
+    0 10px 10px -5px rgba(0, 0, 0, 0.02);
 }
 
-.flow-path-fast {
-  stroke-dasharray: 6 4;
-  animation: flowAnimation 1s linear infinite;
-}
-
-@keyframes flowAnimation {
-  from {
-    stroke-dashoffset: 28;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+.shadow-glow {
+  box-shadow: 0 10px 30px -5px var(--primary-glow);
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.65);
+  background: var(--panel-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
 }
 
 .node-card {
-  background: rgba(30, 41, 59, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.2s ease;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.04);
 }
 
 .node-card:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(79, 57, 246, 0.3);
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.08);
 }
 
-.blend-overlay {
-  mix-blend-mode: screen;
+.node-card.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-glow), 0 12px 20px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Redesigned Triangle Node */
+.triangle-node {
+  clip-path: polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%);
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+}
+
+/* React Flow Customizations */
+.react-flow__handle {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  border: 2px solid #ffffff !important;
+  background: var(--primary) !important;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.5);
+  box-shadow: 0 0 0 4px var(--primary-glow);
+}
+
+.react-flow__edge-path {
+  stroke-width: 2.5;
+  transition: all 0.3s ease;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--primary);
+  stroke-width: 4;
+}
+
+.react-flow__controls {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05) !important;
+  background: #ffffff !important;
+  padding: 4px !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.react-flow__controls button {
+  background: #ffffff !important;
+  border: none !important;
+  fill: #64748b !important;
+  width: 30px !important;
+  height: 30px !important;
+  margin: 2px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls button:hover {
+  background: #f1f5f9 !important;
+  fill: var(--primary) !important;
+}
+
+.react-flow__minimap {
+  background: #ffffff !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.05) !important;
+  overflow: hidden;
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
 }
