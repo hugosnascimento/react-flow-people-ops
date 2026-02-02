@@ -16,6 +16,14 @@ import ReactFlow, {
   MiniMap
 } from "reactflow";
 import engine from "./services/EvaEngine";
+import {
+  createOrchestrator,
+  getOrchestrator,
+  listOrchestrators,
+  publishOrchestrator,
+  saveOrchestrator,
+  triggerOrchestrator,
+} from "./services/orchestratorApi";
 import { Orchestrator, WorkflowNodeData } from "./types";
 import { DashboardView } from "./components/dashboard/DashboardView";
 import { MonitorView } from "./components/monitor/MonitorView";
@@ -140,7 +148,13 @@ const nodeTypes = {
 
 // --- App Component ---
 
-const AppContent: React.FC<{ orchestrator: Orchestrator; onBack: () => void; onSave: (o: Orchestrator) => void }> = ({ orchestrator, onBack, onSave }) => {
+const AppContent: React.FC<{
+  orchestrator: Orchestrator;
+  onBack: () => void;
+  onSave: (o: Orchestrator) => void;
+  onPublish: (o: Orchestrator) => void;
+  onTrigger: (o: Orchestrator) => void;
+}> = ({ orchestrator, onBack, onSave, onPublish, onTrigger }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(orchestrator.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(orchestrator.edges);
   const { screenToFlowPosition } = useReactFlow();
@@ -211,10 +225,21 @@ const AppContent: React.FC<{ orchestrator: Orchestrator; onBack: () => void; onS
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {orchestrator.status === 'published' && (<button onClick={() => setShowMonitor(true)} className="flex items-center gap-3 px-6 py-3.5 text-[10px] font-black text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-2xl border border-rose-100 transition-all font-mono uppercase">Node Exec Log</button>)}
-          <button onClick={() => onSave({ ...orchestrator, status: orchestrator.status === 'published' ? 'draft' : 'published' })} className={`px-8 py-3.5 text-[10px] font-black rounded-2xl transition-all shadow-xl ${orchestrator.status === 'published' ? 'bg-slate-800 text-white' : 'bg-[#4f39f6] text-white'}`}>
-            <span className="tracking-widest uppercase">{orchestrator.status === 'published' ? 'STOP ENGINE' : 'ACTIVATE ENGINE'}</span>
-          </button>
+          {orchestrator.status === 'published' && (
+            <>
+              <button onClick={() => onTrigger(orchestrator)} className="flex items-center gap-3 px-6 py-3.5 text-[10px] font-black text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-2xl border border-emerald-100 transition-all font-mono uppercase">
+                Trigger Flow
+              </button>
+              <button onClick={() => setShowMonitor(true)} className="flex items-center gap-3 px-6 py-3.5 text-[10px] font-black text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-2xl border border-rose-100 transition-all font-mono uppercase">
+                Node Exec Log
+              </button>
+            </>
+          )}
+          {orchestrator.status !== 'published' && (
+            <button onClick={() => onPublish(orchestrator)} className="px-8 py-3.5 text-[10px] font-black rounded-2xl transition-all shadow-xl bg-[#4f39f6] text-white">
+              <span className="tracking-widest uppercase">PUBLISH ENGINE</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -344,52 +369,81 @@ const AppContent: React.FC<{ orchestrator: Orchestrator; onBack: () => void; onS
 
 const App: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'editor'>('dashboard');
-  const [orchestrators, setOrchestrators] = useState<Orchestrator[]>([
-    {
-      id: "o-onb-full",
-      name: "Onboarding D-10 to D+90",
-      description: "Admin of high-integrity handoffs between recruitment, training and role specialization.",
-      status: "published",
-      executionHealth: 98,
-      lastExecution: "01/02/2026 10:25",
-      errorCount: 1,
-      nodes: [
-        { id: "trig", type: "trigger", position: { x: 0, y: 150 }, data: { label: "ATS Gateway", method: 'POST', endpoint: 'api.hubapi.com/tickets', authType: 'API Key', integrationActive: true, bodyParams: [{ key: 'subject', value: 'Subject', type: 'property' }] } },
-        { id: "del1", type: "delay", position: { x: 350, y: 150 }, data: { label: "Wait 1 Day", delayValue: 1, delayUnit: 'days' } },
-        { id: "fs1", type: "journey", position: { x: 650, y: 150 }, data: { label: "Pre-boarding Hub", journeyId: "pre-clt" } },
-        { id: "dec1", type: "decision", position: { x: 1000, y: 50 }, data: { label: "Segment", switchField: "tags", cases: { "tech": "Tech Unit", "sales": "Sales Unit" } } },
-      ],
-      edges: [
-        { id: "e1", source: "trig", target: "del1", animated: true },
-        { id: "e2", source: "del1", target: "fs1", animated: true },
-        { id: "e3", source: "fs1", target: "dec1", animated: true },
-      ]
-    },
-    {
-      id: "o-reminders-dp",
-      name: "Recurring HR Reminders",
-      description: "Integrity monitoring for automated payroll and vacation notifications.",
-      status: "draft",
-      executionHealth: 100,
-      errorCount: 0,
-      nodes: [],
-      edges: []
-    }
-  ]);
+  const [orchestrators, setOrchestrators] = useState<Orchestrator[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentOrchestrator, setCurrentOrchestrator] = useState<Orchestrator | null>(null);
   const [monitorOrchestrator, setMonitorOrchestrator] = useState<Orchestrator | null>(null);
 
-  const handleEdit = (o: Orchestrator) => { setCurrentOrchestrator(o); setView('editor'); };
-  const handleSave = (updated: Orchestrator) => { setOrchestrators(prev => prev.map(o => o.id === updated.id ? updated : o)); if (currentOrchestrator?.id === updated.id) setCurrentOrchestrator(updated); };
+  const loadOrchestrators = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await listOrchestrators();
+      setOrchestrators(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOrchestrators();
+  }, [loadOrchestrators]);
+
+  const handleEdit = async (o: Orchestrator) => {
+    const loaded = await getOrchestrator(o.id);
+    setCurrentOrchestrator(loaded);
+    setView('editor');
+  };
+
+  const handleSave = async (updated: Orchestrator) => {
+    const saved = await saveOrchestrator(updated);
+    setOrchestrators(prev => prev.map(o => o.id === saved.id ? saved : o));
+    if (currentOrchestrator?.id === saved.id) {
+      setCurrentOrchestrator(saved);
+    }
+  };
+
+  const handleCreate = async () => {
+    const created = await createOrchestrator();
+    await loadOrchestrators();
+    setCurrentOrchestrator(created);
+    setView('editor');
+  };
+
+  const handlePublish = async (o: Orchestrator) => {
+    await publishOrchestrator(o.id);
+    await loadOrchestrators();
+    const refreshed = await getOrchestrator(o.id);
+    setCurrentOrchestrator(refreshed);
+  };
+
+  const handleTrigger = async (o: Orchestrator) => {
+    await triggerOrchestrator(o.id);
+    setMonitorOrchestrator(o);
+  };
 
   return (
     <ReactFlowProvider>
       {view === 'dashboard' ? (
-        <DashboardView orchestrators={orchestrators} onEdit={handleEdit} onCreate={() => { }} onRename={(id, name) => setOrchestrators(prev => prev.map(o => o.id === id ? { ...o, name } : o))} onViewExecution={o => setMonitorOrchestrator(o)} />
+        <DashboardView orchestrators={orchestrators} onEdit={handleEdit} onCreate={handleCreate} onRename={(id, name) => setOrchestrators(prev => prev.map(o => o.id === id ? { ...o, name } : o))} onViewExecution={o => setMonitorOrchestrator(o)} />
       ) : (
-        currentOrchestrator && <AppContent orchestrator={currentOrchestrator} onBack={() => setView('dashboard')} onSave={handleSave} />
+        currentOrchestrator && (
+          <AppContent
+            orchestrator={currentOrchestrator}
+            onBack={() => setView('dashboard')}
+            onSave={handleSave}
+            onPublish={handlePublish}
+            onTrigger={handleTrigger}
+          />
+        )
       )}
       {monitorOrchestrator && <MonitorView orchestrator={monitorOrchestrator} onClose={() => setMonitorOrchestrator(null)} />}
+      {loading && (
+        <div className="fixed bottom-6 right-6 bg-white border border-slate-200 shadow-xl rounded-2xl px-6 py-3 text-xs font-bold text-slate-500">
+          Carregando orquestradores...
+        </div>
+      )}
     </ReactFlowProvider>
   );
 };
