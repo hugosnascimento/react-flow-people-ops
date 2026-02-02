@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Orchestrator, NodeExecutionEvent } from '../../types';
-import engine from '../../services/EvaEngine';
+import { listExecutions, listExecutionEvents } from '../../services/orchestratorApi';
 
 interface MonitorProps {
     orchestrator: Orchestrator;
@@ -9,10 +9,51 @@ interface MonitorProps {
 
 export const MonitorView: React.FC<MonitorProps> = ({ orchestrator, onClose }) => {
     const [events, setEvents] = useState<NodeExecutionEvent[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setEvents(engine.getNodeExecutions());
-    }, []);
+        let isMounted = true;
+
+        const loadEvents = async () => {
+            try {
+                const { executions } = await listExecutions(orchestrator.id);
+                const latestExecution = executions[0];
+                if (!latestExecution) {
+                    if (isMounted) {
+                        setEvents([]);
+                    }
+                    return;
+                }
+
+                const { events: apiEvents } = await listExecutionEvents(latestExecution.id);
+                const mapped = apiEvents.map((event) => ({
+                    id: event.id,
+                    nodeId: event.id,
+                    nodeLabel: event.payload_json?.nodeLabel ?? event.type,
+                    timestamp: new Date(event.created_at).toLocaleTimeString(),
+                    status: event.payload_json?.status ?? 'success',
+                    message: event.payload_json?.message ?? event.type,
+                    latency: event.payload_json?.latency
+                }));
+
+                if (isMounted) {
+                    setEvents(mapped);
+                }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        loadEvents();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [orchestrator.id]);
 
     const getStatusStyle = (status: NodeExecutionEvent['status']) => {
         switch (status) {
@@ -80,6 +121,13 @@ export const MonitorView: React.FC<MonitorProps> = ({ orchestrator, onClose }) =
                                     </td>
                                 </tr>
                             ))}
+                            {!loading && events.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="px-10 py-10 text-center text-sm text-slate-400 font-semibold">
+                                        Nenhum evento registrado para este orquestrador.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
