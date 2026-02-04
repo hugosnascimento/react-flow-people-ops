@@ -11,7 +11,7 @@ import ReactFlow, {
 } from "reactflow";
 import engine from "../services/EvaEngine";
 import { Orchestrator } from "../types";
-import { TriggerNode, JourneyNode, DecisionNode, TagManagerNode, DelayNode } from "./nodes";
+import { TriggerNode, JourneyNode, DecisionNode, TagManagerNode, DelayNode, CsvUploadNode, RegisterEmployeeNode, TriggerWorkflowNode } from "./nodes";
 import { MonitorView } from "./monitor/MonitorView";
 import { Button, IconButton, Modal } from "./ui";
 import { TriggerPropsEditor } from "./properties/TriggerPropsEditor";
@@ -23,6 +23,9 @@ const nodeTypes = {
     decision: DecisionNode,
     setTag: TagManagerNode,
     delay: DelayNode,
+    csvUpload: CsvUploadNode,
+    registerEmployee: RegisterEmployeeNode,
+    triggerWorkflow: TriggerWorkflowNode,
 };
 
 
@@ -104,13 +107,16 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
 
     const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
+    // Node Factory items - Filtering out requested nodes
     const nodeFactoryItems = [
         { type: 'trigger', label: 'External Trigger', icon: 'api', color: 'text-[#ff5a1f]', data: { label: 'API Gateway', method: 'POST', endpoint: 'https://api.example.com', authType: 'API Key', integrationActive: true } },
         { type: 'journey', label: 'Flow Starter', icon: 'rocket_launch', color: 'text-[#4f39f6]', data: { label: 'Start Journey', journeyId: '' } },
         { type: 'decision', label: 'Decision Logic', icon: 'call_split', color: 'text-purple-600', data: { label: 'Branch Logic', switchField: 'tag', cases: { "val1": "Path A" } } },
         { type: 'setTag', label: 'Tag Manager', icon: 'sell', color: 'text-emerald-600', data: { label: 'Update Tags', addTag: '', removeTag: '' } },
-        { type: 'delay', label: 'Wait Delay', icon: 'schedule', color: 'text-amber-500', data: { label: 'Wait Period', delayValue: 1, delayUnit: 'days' } }
+        { type: 'delay', label: 'Wait Delay', icon: 'schedule', color: 'text-amber-500', data: { label: 'Wait Period', delayValue: 1, delayUnit: 'days' } },
     ];
+
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -168,25 +174,43 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
 
             <div className="flex flex-1 overflow-hidden p-6 gap-6 relative">
                 {/* Node Factory Sidebar */}
-                <aside className="w-[320px] flex flex-col shrink-0 z-20 rounded-[32px] border border-slate-200 bg-white shadow-premium p-7">
-                    <h2 className="font-black text-[11px] text-slate-400 tracking-[0.25em] mb-8 uppercase flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm">construction</span>
-                        Node Factory
-                    </h2>
+                <aside
+                    className={`${isSidebarCollapsed ? 'w-[100px] px-3' : 'w-[320px] p-7'} flex flex-col shrink-0 z-20 rounded-[32px] border border-slate-200 bg-white shadow-premium transition-all duration-300 ease-in-out relative`}
+                >
+                    <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} mb-8`}>
+                        {!isSidebarCollapsed && (
+                            <h2 className="font-black text-[11px] text-slate-400 tracking-[0.25em] uppercase flex items-center gap-2 whitespace-nowrap">
+                                <span className="material-symbols-outlined text-sm">construction</span>
+                                Node Factory
+                            </h2>
+                        )}
+                        <button
+                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-xl">
+                                {isSidebarCollapsed ? 'chevron_right' : 'chevron_left'}
+                            </span>
+                        </button>
+                    </div>
+
                     <div className="space-y-4 overflow-y-auto pr-2 no-scrollbar">
                         {nodeFactoryItems.map((n, i) => (
                             <button
                                 key={i}
                                 onClick={() => addNode(n.type, n.data)}
-                                className="w-full text-left p-4 bg-slate-50 hover:bg-white hover:shadow-xl hover:translate-y-[-2px] border border-slate-100 rounded-[24px] flex items-center gap-5 transition-all group"
+                                className={`w-full text-left bg-slate-50 hover:bg-white hover:shadow-xl hover:translate-y-[-2px] border border-slate-100 rounded-[24px] flex items-center transition-all group ${isSidebarCollapsed ? 'justify-center p-3' : 'p-4 gap-5'}`}
+                                title={isSidebarCollapsed ? n.label : ''}
                             >
-                                <div className={`w-12 h-12 rounded-2xl bg-white border border-slate-100 ${n.color} flex items-center justify-center group-hover:scale-110 shadow-sm transition-all`}>
+                                <div className={`w-12 h-12 shrink-0 rounded-2xl bg-white border border-slate-100 ${n.color} flex items-center justify-center group-hover:scale-110 shadow-sm transition-all`}>
                                     <span className="material-symbols-outlined text-xl font-black">{n.icon}</span>
                                 </div>
-                                <div>
-                                    <span className="text-[13px] font-black text-slate-800 block">{n.label}</span>
-                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Insert Node</span>
-                                </div>
+                                {!isSidebarCollapsed && (
+                                    <div className="min-w-0">
+                                        <span className="text-[13px] font-black text-slate-800 block truncate">{n.label}</span>
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase truncate block">Insert Node</span>
+                                    </div>
+                                )}
                             </button>
                         ))}
                     </div>
@@ -269,6 +293,59 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
                                         data={selectedNode.data}
                                         onUpdate={patch => updateNode(selectedNode.id, patch)}
                                     />
+                                )}
+
+                                {selectedNode.type === 'csvUpload' && (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3">Template ID</label>
+                                            <input
+                                                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#4f39f6]"
+                                                value={selectedNode.data.templateId || ''}
+                                                onChange={e => updateNode(selectedNode.id, { templateId: e.target.value })}
+                                                placeholder="e.g., ADM-001"
+                                            />
+                                        </div>
+                                        <Button variant="secondary" size="sm" className="w-full">
+                                            <span className="material-symbols-outlined mr-2">download</span>
+                                            Download Template
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {selectedNode.type === 'registerEmployee' && (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3">Target System</label>
+                                            <select
+                                                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#4f39f6] appearance-none"
+                                                value={selectedNode.data.system || 'Eva Platform'}
+                                                onChange={e => updateNode(selectedNode.id, { system: e.target.value })}
+                                            >
+                                                <option value="Eva Platform">Eva Platform</option>
+                                                <option value="External CRM">External CRM</option>
+                                                <option value="HCM System">HCM System</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedNode.type === 'triggerWorkflow' && (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3">Select Workflow</label>
+                                            <select
+                                                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#4f39f6] appearance-none"
+                                                value={selectedNode.data.workflowId || ''}
+                                                onChange={e => updateNode(selectedNode.id, { workflowId: e.target.value })}
+                                            >
+                                                <option value="">Select a workflow...</option>
+                                                {availableJourneys.map(j => (
+                                                    <option key={j.id} value={j.id}>{j.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
 
