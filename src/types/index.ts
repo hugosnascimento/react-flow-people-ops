@@ -1,13 +1,41 @@
-export type OrchestratorStatus = 'draft' | 'published' | 'archived';
+export interface Collaborator {
+    id: string;
+    name: string;
+    role: string;
+    department: string;
+    email: string;
+    avatar: string;
+    status: 'active' | 'onboarding' | 'offboarding' | 'inactive';
+    startDate: string;
+    tags: string[];
+    journeys: UserJourney[];
+}
+
+export interface Tag {
+    id: string;
+    name: string;
+    color: string;
+    category: string;
+}
+
+export interface UserJourney {
+    id: string;
+    journeyId: string;
+    journeyName: string;
+    status: 'pending' | 'active' | 'completed' | 'cancelled';
+    progress: number;
+    startDate: string;
+    currentStep: string;
+}
 
 export interface Orchestrator {
     id: string;
     name: string;
     description: string;
-    status: OrchestratorStatus;
+    status: 'draft' | 'active' | 'paused' | 'published';
     nodes: any[];
     edges: any[];
-    executionHealth: number; // Node success rate percentage
+    executionHealth: number;
     lastExecution?: string;
     errorCount: number;
 }
@@ -22,51 +50,15 @@ export interface NodeExecutionEvent {
     latency?: string;
 }
 
-export interface ExternalJourney {
+export interface Integration {
     id: string;
     name: string;
-    steps: number;
-    estimatedDays: number;
-}
-
-export interface Collaborator {
-    id: string;
-    name: string;
-    email: string;
-    tags: string[];
-    currentOrchestrationStatus?: 'waiting' | 'in_progress' | 'completed' | 'failed';
-    currentOrchestratorStepId?: string;
-}
-
-export interface LogEntry {
-    id: string;
-    timestamp: string;
-    method: 'GET' | 'POST' | 'DELETE' | 'PUT';
-    endpoint: string;
-    payload?: any;
-    status: number;
-    message: string;
-}
-
-export interface WorkflowNodeData {
-    label: string;
-    journeyId?: string;
-    switchField?: string;
-    addTag?: string;
-    removeTag?: string;
-    cases?: Record<string, string>;
-    // API Config for External Trigger
-    method?: 'GET' | 'POST' | 'PUT' | 'PATCH';
-    endpoint?: string;
+    type: 'ATS' | 'HCM' | 'LMS' | 'Communication' | 'Engagement' | 'Other';
+    initials: string; // Ex: GU, EV, LG
+    color: string;    // Ex: #4f39f6
+    status: 'active' | 'inactive';
+    description: string;
+    // Campos técnicos (mockados para UI)
+    baseUrl?: string;
     authType?: string;
-    integrationActive?: boolean;
-    bodyParams?: { key: string; value: string; type: 'property' | 'static' }[];
-    provider?: string;
-    // Delay Config
-    delayValue?: number;
-    delayUnit?: 'days' | 'hours';
-}
-
-export interface WorkspaceConfig {
-    tags: string[];
 }

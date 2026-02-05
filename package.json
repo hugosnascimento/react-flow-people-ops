@@ -1,14 +1,32 @@
 {
   "name": "react-flow-people-ops",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
+  "description": "Visual People Ops workflow orchestrator built with React Flow",
+  "author": "Hugo Soares Nascimento",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hugosnascimento/react-flow-people-ops.git"
+  },
+  "keywords": [
+    "people-ops",
+    "workflow",
+    "orchestration",
+    "onboarding",
+    "react-flow",
+    "automation"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.93.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reactflow": "^11.11.4"
@@ -21,5 +39,9 @@
     "typescript": "^5.4.3",
     "vite": "^5.1.1",
     "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }
