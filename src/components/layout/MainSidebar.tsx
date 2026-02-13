@@ -16,7 +16,7 @@ export const MainSidebar: React.FC<MainSidebarProps> = ({ currentView, onViewCha
                 onClick={() => onViewChange('dashboard')}
                 className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all ${(currentView === 'dashboard' || currentView === 'editor') ? 'bg-[#4f39f6] text-white' : 'text-slate-500 hover:bg-slate-800'
                     }`}
-                title="Orchestration Hub"
+                title="People Ops Orchestration"
             >
                 <span className="material-symbols-outlined">dashboard</span>
             </button>

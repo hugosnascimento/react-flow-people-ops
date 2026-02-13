@@ -36,30 +36,26 @@ Times de People Ops lidam com processos complexos e repetitivos (onboarding, mud
 - **Monitor de Execução** (execution log) com eventos de sucesso/erro e métricas visuais.
 
 ### 6.2. Tipos de Nós Disponíveis
-- **External Trigger**: inicia o fluxo via API (configura método, endpoint e autenticação).
-- **Flow Starter (Journey)**: referencia jornadas externas de People Ops.
-- **Decision Logic**: cria ramificações com base em tags/atributos.
-- **Tag Manager**: adiciona/remove tags de colaboradores.
-- **Delay**: controla tempos de espera entre etapas.
+- **Start Flow (Iniciar Fluxo)**: Referencia jornadas de People Ops existentes para iniciar o processo.
+- **Conditional (Condicional)**: Cria ramificações com base em regras lógicas (ex: departamento, cargo, senioridade).
+- **Human In The Loop**: Atribui tarefas manuais de aprovação ou input para um responsável (ex: Gestor, RH).
+- **Notification (Notificação)**: Envia comunicações via Email, Slack, WhatsApp ou Teams. **Principal mecanismo de fallback** e tratamento de erros.
 
-### 6.3. Lógica de Orquestração (API‑First)
-- **OrchestratorAPI** registra e valida fluxos.
-- **FlowDefinition** representa um fluxo composto por intents de comunicação.
-- **CommunicationIntent** define o canal, audiência e template de mensagem.
-- **Validação de domínio** garante regras básicas (mínimo de intents e audiência interna).
+### 6.3. Novas Funcionalidades
+- **Execution Snapshots**: Visualização histórica da execução de fluxos, permitindo "viajar no tempo" para auditar o estado dos nós.
+- **Advanced Settings**: Configurações de **Delay** incorporadas diretamente nos nós, sem necessidade de um nó dedicado.
+- **Tratamento de Erros**: Centralizado no nó de Notificação.
 
 ### 6.4. APIs Mockadas (Documentação)
-- Operações para **listar tags do workspace**, **listar tags de colaboradores**, **adicionar/remover tags** e **regras de resposta**.
+- Operações para listagem de colaboradores e jornadas.
 
 ## 7. Requisitos Funcionais (FR)
-1. Criar/editar orquestradores com nós conectáveis em um canvas.
-2. Configurar gatilhos externos com endpoint, método e autenticação.
-3. Referenciar jornadas existentes de People Ops.
-4. Definir lógica condicional (branching) por tags.
-5. Adicionar/remover tags em colaboradores.
-6. Configurar delays com unidades de tempo (dias/horas).
-7. Monitorar execução com logs e status visual.
-8. Validar fluxos no domínio (mínimo de intents e audiência interna).
+1. Criar/editar orquestradores com nós conectáveis (Start Flow, Conditional, HITL, Notification).
+2. Definir lógica condicional (branching) por atributos de colaboradores.
+3. Atribuir tarefas humanas com timeout.
+4. Enviar notificações multicanal (Email, Slack, WhatsApp).
+5. Visualizar **Snapshots de Execução** para auditoria visual e depuração.
+6. Configurar delays diretamente nas propriedades dos nós.
 
 ## 8. Requisitos Não‑Funcionais (NFR)
 - **Arquitetura hexagonal** (domínio isolado, API como contrato, adaptadores substituíveis).

@@ -1,9 +1,4 @@
-export * from './TriggerNode';
-export * from './JourneyNode';
-export * from './DecisionNode';
-export * from './TagManagerNode';
-export * from './DelayNode';
-export * from './CsvUploadNode';
-export * from './RegisterEmployeeNode';
-export * from './TriggerWorkflowNode';
-
+export { JourneyNode } from './JourneyNode';
+export { DecisionNode } from './DecisionNode';
+export { HumanInTheLoopNode } from './HumanInTheLoopNode';
+export { default as NotificationNode } from './NotificationNode';

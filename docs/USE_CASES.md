@@ -378,7 +378,7 @@ Atualizar e validar informações de contato de emergência regularmente.
 
 1. **Identificar necessidade**: Qual processo você quer automatizar?
 2. **Mapear o fluxo**: Desenhe o flow usando os casos como referência
-3. **Configurar nodes**: Use Trigger, Journey, Decision, Tag, Delay conforme necessário
+3. **Configurar nodes**: Use Start Flow, Conditional, Human In The Loop, Notification conforme necessário
 4. **Testar**: Rode em draft com grupo pequeno
 5. **Publicar**: Ative o orchestrator
 

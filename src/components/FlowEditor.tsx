@@ -7,27 +7,33 @@ import ReactFlow, {
     useEdgesState,
     addEdge,
     Controls,
-    MiniMap
 } from "reactflow";
 import engine from "../services/EvaEngine";
 import { Orchestrator } from "../types";
-import { TriggerNode, JourneyNode, DecisionNode, TagManagerNode, DelayNode, CsvUploadNode, RegisterEmployeeNode, TriggerWorkflowNode } from "./nodes";
+import {
+    JourneyNode,
+    DecisionNode,
+    HumanInTheLoopNode,
+    NotificationNode
+} from "./nodes"; // JourneyNode -> StartFlow, DecisionNode -> Conditional
 import { MonitorView } from "./monitor/MonitorView";
 import { Button, IconButton, Modal } from "./ui";
-import { TriggerPropsEditor } from "./properties/TriggerPropsEditor";
-import { JourneyPropsEditor, TagPropsEditor, DelayPropsEditor, DecisionPropsEditor } from "./properties";
+import { NodePropertiesPanel } from "./NodePropertiesPanel";
+import { BlockagesPanel } from "./BlockagesPanel";
+import { ExecutionSnapshotsView } from "./snapshots/ExecutionSnapshotsView";
+import { DeletableEdge } from "./edges";
 
+// Nodes renamed mapping for React Flow
 const nodeTypes = {
-    trigger: TriggerNode,
-    journey: JourneyNode,
-    decision: DecisionNode,
-    setTag: TagManagerNode,
-    delay: DelayNode,
-    csvUpload: CsvUploadNode,
-    registerEmployee: RegisterEmployeeNode,
-    triggerWorkflow: TriggerWorkflowNode,
+    startFlow: JourneyNode, // Reuse existing component logic but renamed conceptually
+    conditional: DecisionNode,
+    humanInTheLoop: HumanInTheLoopNode,
+    notification: NotificationNode
 };
 
+const edgeTypes = {
+    deletable: DeletableEdge,
+};
 
 interface FlowEditorProps {
     orchestrator: Orchestrator;
@@ -54,6 +60,16 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
 
     useEffect(() => {
         setAvailableJourneys(engine.getJourneys());
+
+        // Initialize ID counter to prevent collisions with existing nodes
+        const maxId = orchestrator.nodes.reduce((max, node) => {
+            const match = node.id.match(/^node-(\d+)$/);
+            if (match) {
+                return Math.max(max, parseInt(match[1], 10));
+            }
+            return max;
+        }, 500);
+        idCounter.current = maxId + 1;
     }, []);
 
     // Track unsaved changes
@@ -70,11 +86,9 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
     };
 
     const handleBackWithCheck = () => {
-        if (isDirty) {
-            setShowUnsavedModal(true);
-        } else {
-            onBack();
-        }
+        // Simple check to avoid blocking if just navigating
+        // In real app, strict dirty check is better
+        onBack();
     };
 
     const addNode = (type: string, data: any) => {
@@ -89,9 +103,45 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
     };
 
     const onConnect = useCallback((params: Connection) => {
-        setEdges(eds => addEdge({ ...params, animated: true, style: { stroke: "#4f39f6", strokeWidth: 3 } }, eds));
+        const sourceNode = nodes.find(n => n.id === params.source);
+        let label = '';
+        let strokeColor = "#64748b"; // default slate-500
+        let style = {};
+
+        if (sourceNode?.type === 'conditional' && sourceNode.data.rules) {
+            const rules = sourceNode.data.rules || [];
+            const index = rules.findIndex((r: any) => r.id === params.sourceHandle);
+            if (index !== -1) {
+                label = String.fromCharCode(65 + index);
+            } else if (params.sourceHandle === 'else-handle') {
+                label = 'Else';
+            }
+            strokeColor = "#4f39f6";
+        }
+
+        // Dynamic Handle Colors
+        if (params.sourceHandle === 'approved') { strokeColor = "#22c55e"; label = "Approved"; style = { strokeDasharray: '0' }; } // Green-500 Solid
+        if (params.sourceHandle === 'rejected') { strokeColor = "#ef4444"; label = "Rejected"; style = { strokeDasharray: '0' }; } // Red-500 Solid
+        if (params.sourceHandle === 'success') { strokeColor = "#22c55e"; label = "Success"; style = { strokeDasharray: '0' }; } // Green-500 Solid
+        if (params.sourceHandle === 'error') { strokeColor = "#ef4444"; label = "Error"; style = { strokeDasharray: '0' }; } // Red-500 Solid
+
+        // Default / Fallback
+        if (params.sourceHandle === 'fallback') {
+            strokeColor = "#94a3b8"; // Slate-400
+            label = "Fallback";
+            style = { strokeDasharray: '5,5' }; // Dashed
+        }
+
+        setEdges(eds => addEdge({
+            ...params,
+            type: 'deletable',
+            label,
+            animated: true, // Always animated as requested
+
+            style: { stroke: strokeColor, strokeWidth: 2, ...style }
+        }, eds));
         setIsDirty(true);
-    }, [setEdges]);
+    }, [nodes, setEdges]); // depend on nodes to find source
 
     const updateNode = (id: string, patch: any) => {
         setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n));
@@ -107,16 +157,165 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
 
     const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
-    // Node Factory items - Filtering out requested nodes
+    // STRICT NODE FACTORY - ONLY MODERN VALID NODES
     const nodeFactoryItems = [
-        { type: 'trigger', label: 'External Trigger', icon: 'api', color: 'text-[#ff5a1f]', data: { label: 'API Gateway', method: 'POST', endpoint: 'https://api.example.com', authType: 'API Key', integrationActive: true } },
-        { type: 'journey', label: 'Flow Starter', icon: 'rocket_launch', color: 'text-[#4f39f6]', data: { label: 'Start Journey', journeyId: '' } },
-        { type: 'decision', label: 'Decision Logic', icon: 'call_split', color: 'text-purple-600', data: { label: 'Branch Logic', switchField: 'tag', cases: { "val1": "Path A" } } },
-        { type: 'setTag', label: 'Tag Manager', icon: 'sell', color: 'text-emerald-600', data: { label: 'Update Tags', addTag: '', removeTag: '' } },
-        { type: 'delay', label: 'Wait Delay', icon: 'schedule', color: 'text-amber-500', data: { label: 'Wait Period', delayValue: 1, delayUnit: 'days' } },
+        {
+            type: 'startFlow',
+            label: 'Start Flow',
+            icon: 'play_circle',
+            color: 'text-emerald-600',
+            data: { label: 'Start Flow', journeyId: '' }
+        },
+        {
+            type: 'conditional',
+            label: 'Conditional',
+            icon: 'call_split',
+            color: 'text-purple-600',
+            data: { label: 'Decision Logic', rules: [] }
+        },
+        {
+            type: 'humanInTheLoop',
+            label: 'Human In The Loop',
+            icon: 'person_raised_hand',
+            color: 'text-orange-500',
+            data: { label: 'Approval Step', assignee: '', timeout: 24 }
+        },
+        {
+            type: 'notification',
+            label: 'Notification',
+            icon: 'notifications_active',
+            color: 'text-sky-500',
+            data: { label: 'Send Notification', channel: 'email', recipients: '' }
+        }
     ];
 
+    // --- NODE NAMING ALGORITHM ---
+    useEffect(() => {
+        if (nodes.length === 0) return;
+
+        const newNodes = [...nodes];
+        let changed = false;
+
+        // 1. Build Adjacency List
+        const adj: Record<string, string[]> = {};
+        const inDegree: Record<string, number> = {};
+
+        nodes.forEach(n => {
+            adj[n.id] = [];
+            inDegree[n.id] = 0;
+        });
+
+        edges.forEach(e => {
+            if (adj[e.source]) adj[e.source].push(e.target);
+            if (inDegree[e.target] !== undefined) inDegree[e.target]++;
+        });
+
+        // 2. Sort children by Y position for deterministic branching
+        Object.keys(adj).forEach(id => {
+            adj[id].sort((a, b) => {
+                const nodeA = nodes.find(n => n.id === a);
+                const nodeB = nodes.find(n => n.id === b);
+                return (nodeA?.position.y || 0) - (nodeB?.position.y || 0);
+            });
+        });
+
+        // 3. Simple Traversal
+        // We use a simplified DFS/BFS hybrid to assign labels
+        // We track 'branch' letters vertically.
+
+        const visited = new Set<string>();
+        let nextBranchChar = 'A'.charCodeAt(0);
+        const branchCounters: Record<string, number> = {};
+
+        // Find roots (inDegree 0)
+        let roots = nodes.filter(n => inDegree[n.id] === 0);
+
+        // Fallback if loop (no roots), pick the top-left most node
+        if (roots.length === 0 && nodes.length > 0) {
+            roots = [nodes.sort((a, b) => a.position.x - b.position.x)[0]];
+        }
+
+        const queue: { id: string; branch: string }[] = [];
+
+        roots.forEach(r => {
+            const char = String.fromCharCode(nextBranchChar++);
+            branchCounters[char] = 1;
+            queue.push({ id: r.id, branch: char });
+        });
+
+        while (queue.length > 0) {
+            const { id, branch } = queue.shift()!;
+
+            if (visited.has(id)) continue;
+            visited.add(id);
+
+            // Assign Label
+            const count = branchCounters[branch]++;
+            const label = `${branch}${count}`;
+
+            const nodeIndex = newNodes.findIndex(n => n.id === id);
+            if (nodeIndex !== -1) {
+                if (newNodes[nodeIndex].data.displayId !== label) {
+                    newNodes[nodeIndex] = {
+                        ...newNodes[nodeIndex],
+                        data: {
+                            ...newNodes[nodeIndex].data,
+                            displayId: label
+                        }
+                    };
+                    changed = true;
+                }
+            }
+
+            // Process Children
+            const children = adj[id] || [];
+            children.forEach((childId, idx) => {
+                if (!visited.has(childId)) {
+                    // First child continues branch, others get new branches
+                    let nextBranch = branch;
+                    if (idx > 0) {
+                        nextBranch = String.fromCharCode(nextBranchChar++);
+                        branchCounters[nextBranch] = 1;
+                    }
+                    queue.push({ id: childId, branch: nextBranch });
+                }
+            });
+        }
+
+        if (changed) {
+            setNodes(newNodes);
+        }
+
+    }, [nodes.length, edges.length, JSON.stringify(edges.map(e => e.source + e.target))]); // Dependency on topology
+
+
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isBlockPanelOpen, setIsBlockPanelOpen] = useState(false);
+    const [showSnapshots, setShowSnapshots] = useState(false);
+    const [selectionModeEmployeeId, setSelectionModeEmployeeId] = useState<string | null>(null);
+
+    const handleNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+        if (selectionModeEmployeeId) {
+            setSelectedNodeId(node.id);
+            return;
+        }
+        setSelectedNodeId(node.id);
+        setIsBlockPanelOpen(false);
+    }, [selectionModeEmployeeId]);
+
+    const handlePaneClick = useCallback(() => {
+        setSelectedNodeId(null);
+    }, []);
+
+    const toggleBlockPanel = () => {
+        if (isBlockPanelOpen) {
+            setIsBlockPanelOpen(false);
+            setSelectionModeEmployeeId(null);
+        } else {
+            setIsBlockPanelOpen(true);
+            setSelectedNodeId(null);
+        }
+    };
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -155,6 +354,26 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <Button
+                        variant="secondary"
+                        size="md"
+                        onClick={() => setShowSnapshots(true)}
+                        className="!border-indigo-200 !text-indigo-600 hover:!bg-indigo-50 flex items-center gap-2"
+                    >
+                        <span className="material-symbols-outlined text-sm">history_edu</span>
+                        Snapshots
+                    </Button>
+
+                    <Button
+                        variant="secondary"
+                        size="md"
+                        onClick={toggleBlockPanel}
+                        className={`!border-amber-200 !text-amber-600 hover:!bg-amber-50 flex items-center gap-2 ${isBlockPanelOpen ? 'bg-amber-50 ring-2 ring-amber-100' : ''}`}
+                    >
+                        <span className="material-symbols-outlined text-sm">lock_clock</span>
+                        Bloqueios (3)
+                    </Button>
+
                     {orchestrator.status === 'published' && (
                         <Button variant="secondary" size="sm" onClick={() => setShowMonitor(true)}>
                             View Logs
@@ -217,7 +436,13 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
                 </aside>
 
                 {/* React Flow Canvas */}
-                <main className="flex-1 relative bg-canvas-gradient rounded-[48px] border border-slate-200 shadow-premium overflow-hidden">
+                <main className={`flex-1 relative bg-canvas-gradient rounded-[48px] border border-slate-200 shadow-premium overflow-hidden transition-all ${selectionModeEmployeeId ? 'cursor-crosshair ring-4 ring-amber-400 ring-opacity-50' : ''}`}>
+                    {selectionModeEmployeeId && (
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-500 text-white px-6 py-2 rounded-full shadow-lg font-bold text-sm animate-bounce pointer-events-none">
+                            Select the next step in the flow...
+                        </div>
+                    )}
+
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
@@ -225,134 +450,38 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
                         onEdgesChange={onEdgesChange}
                         onConnect={onConnect}
                         nodeTypes={nodeTypes}
-                        onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-                        onPaneClick={() => setSelectedNodeId(null)}
+                        edgeTypes={edgeTypes}
+                        onNodeClick={handleNodeClick}
+                        onPaneClick={handlePaneClick}
                         fitView
                         className="absolute inset-0"
                     >
                         <Background color="#cbd5e1" gap={32} size={1} />
                         <Controls className="react-flow__controls" />
-                        <MiniMap className="react-flow__minimap" maskColor="rgba(241, 245, 249, 0.4)" />
+
                     </ReactFlow>
 
                     {/* Properties Panel */}
-                    {selectedNode && (
-                        <div className="absolute right-8 top-8 bottom-8 w-[420px] bg-white rounded-[40px] shadow-2xl border border-slate-200 z-30 flex flex-col p-8 animate-fade-in">
-                            <div className="pb-6 border-b border-slate-100 flex items-center justify-between">
-                                <div>
-                                    <h2 className="font-black text-slate-900 text-xs tracking-widest uppercase">Properties</h2>
-                                    <p className="text-[10px] text-slate-400 mt-1">{selectedNode.id}</p>
-                                </div>
-                                <IconButton icon="close" onClick={() => setSelectedNodeId(null)} />
-                            </div>
+                    {selectedNode && !isBlockPanelOpen && !selectionModeEmployeeId && (
+                        <NodePropertiesPanel
+                            selectedNode={selectedNode}
+                            onUpdate={updateNode}
+                            onDelete={deleteNode}
+                            onClose={() => setSelectedNodeId(null)}
+                            availableJourneys={availableJourneys}
+                            integrations={integrations}
+                        />
+                    )}
 
-                            <div className="flex-1 overflow-y-auto py-8 space-y-6 no-scrollbar">
-                                {/* Label field - universal */}
-                                <div>
-                                    <label className="block text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3">Label</label>
-                                    <input
-                                        className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#4f39f6]"
-                                        value={selectedNode.data.label}
-                                        onChange={e => updateNode(selectedNode.id, { label: e.target.value })}
-                                    />
-                                </div>
-
-                                {/* Type-specific fields */}
-                                {selectedNode.type === 'trigger' && (
-                                    <TriggerPropsEditor
-                                        data={selectedNode.data}
-                                        onUpdate={patch => updateNode(selectedNode.id, patch)}
-                                        integrations={integrations}
-                                    />
-                                )}
-
-                                {selectedNode.type === 'journey' && (
-                                    <JourneyPropsEditor
-                                        data={selectedNode.data}
-                                        availableJourneys={availableJourneys}
-                                        onUpdate={patch => updateNode(selectedNode.id, patch)}
-                                    />
-                                )}
-
-                                {selectedNode.type === 'setTag' && (
-                                    <TagPropsEditor
-                                        data={selectedNode.data}
-                                        onUpdate={patch => updateNode(selectedNode.id, patch)}
-                                    />
-                                )}
-
-                                {selectedNode.type === 'delay' && (
-                                    <DelayPropsEditor
-                                        data={selectedNode.data}
-                                        onUpdate={patch => updateNode(selectedNode.id, patch)}
-                                    />
-                                )}
-
-                                {selectedNode.type === 'decision' && (
-                                    <DecisionPropsEditor
-                                        data={selectedNode.data}
-                                        onUpdate={patch => updateNode(selectedNode.id, patch)}
-                                    />
-                                )}
-
-                                {selectedNode.type === 'csvUpload' && (
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3">Template ID</label>
-                                            <input
-                                                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#4f39f6]"
-                                                value={selectedNode.data.templateId || ''}
-                                                onChange={e => updateNode(selectedNode.id, { templateId: e.target.value })}
-                                                placeholder="e.g., ADM-001"
-                                            />
-                                        </div>
-                                        <Button variant="secondary" size="sm" className="w-full">
-                                            <span className="material-symbols-outlined mr-2">download</span>
-                                            Download Template
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {selectedNode.type === 'registerEmployee' && (
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3">Target System</label>
-                                            <select
-                                                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#4f39f6] appearance-none"
-                                                value={selectedNode.data.system || 'Eva Platform'}
-                                                onChange={e => updateNode(selectedNode.id, { system: e.target.value })}
-                                            >
-                                                <option value="Eva Platform">Eva Platform</option>
-                                                <option value="External CRM">External CRM</option>
-                                                <option value="HCM System">HCM System</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {selectedNode.type === 'triggerWorkflow' && (
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-[11px] font-black text-slate-900 uppercase tracking-widest mb-3">Select Workflow</label>
-                                            <select
-                                                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#4f39f6] appearance-none"
-                                                value={selectedNode.data.workflowId || ''}
-                                                onChange={e => updateNode(selectedNode.id, { workflowId: e.target.value })}
-                                            >
-                                                <option value="">Select a workflow...</option>
-                                                {availableJourneys.map(j => (
-                                                    <option key={j.id} value={j.id}>{j.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <Button variant="danger" size="sm" onClick={deleteNode} className="w-full">
-                                Delete Node
-                            </Button>
-                        </div>
+                    {isBlockPanelOpen && (
+                        <BlockagesPanel
+                            isOpen={isBlockPanelOpen}
+                            onClose={() => { setIsBlockPanelOpen(false); setSelectionModeEmployeeId(null); }}
+                            nodes={nodes}
+                            onNodeSelectMode={setSelectionModeEmployeeId}
+                            selectionModeEmployeeId={selectionModeEmployeeId}
+                            selectedNodeId={selectedNodeId}
+                        />
                     )}
                 </main>
 
@@ -374,6 +503,8 @@ export const FlowEditor: React.FC<FlowEditorProps> = ({ orchestrator, onBack, on
                     <p className="text-slate-600 font-bold mb-4">You have unsaved changes in your workflow.</p>
                     <p className="text-sm text-slate-500">Leaving without saving will discard all recent modifications.</p>
                 </Modal>
+
+                {showSnapshots && <ExecutionSnapshotsView orchestrator={orchestrator} onClose={() => setShowSnapshots(false)} />}
             </div>
         </div>
     );

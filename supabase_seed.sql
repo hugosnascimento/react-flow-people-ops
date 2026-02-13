@@ -1,152 +1,92 @@
 -- INSTRUCTIONS:
--- 1. Go to Supabase Authentication > Users and copy your User UID (it looks like a UUID string).
--- 2. Replace 'YOUR_USER_ID_HERE' in the bottom of this script with your copied UID.
--- 3. Run this script in the Supabase SQL Editor.
+-- 1. Go to Supabase Authentication > Users and copy your User UID.
+-- 2. Replace 'YOUR_USER_ID_HERE' matches or use the specific ID below.
+-- 3. Run this script in the Supabase SQL Editor to RESET and REPOPULATE orchestrators.
+
+DELETE FROM public.orchestrators;
 
 INSERT INTO public.orchestrators (user_id, id, name, description, status, execution_health, error_count, last_execution, nodes, edges)
 VALUES
 (
-    'b0e3cd88-f190-4a23-a6c8-bbd3ff6aa1ec', -- <--- PASTE YOUR UUID HERE
-    'o-onb-90',
-    'Onboarding & Ramp-up Journey',
-    'End-to-end integration flow from D-10 to D+90 days.',
+    'b0e3cd88-f190-4a23-a6c8-bbd3ff6aa1ec', -- User ID
+    'o-onboarding-v2',
+    'Onboarding VIP & IT Setup',
+    'Automated provisioning flow for VIP hires with manual IT verification steps.',
     'published',
     98,
     0,
-    '2026-02-01 14:30:00+00',
+    '2026-02-14 08:30:00+00',
+    -- NODES
     '[
-        { "id": "csv1", "type": "csvUpload", "position": { "x": 0, "y": 300 }, "data": { "label": "Import Hires (CSV)", "templateId": "ONB-TEMPLATE-V2" } },
-        { "id": "reg1", "type": "registerEmployee", "position": { "x": 300, "y": 300 }, "data": { "label": "Register in Eva", "system": "Eva Platform" } },
-        { "id": "del1", "type": "delay", "position": { "x": 600, "y": 300 }, "data": { "label": "Wait: D-10", "delayValue": 10, "delayUnit": "days" } },
-        { "id": "j1", "type": "journey", "position": { "x": 900, "y": 300 }, "data": { "label": "Pre-boarding Docs", "journeyId": "jb-pre-1" } },
-        { "id": "dec1", "type": "decision", "position": { "x": 1200, "y": 300 }, "data": { "label": "Dept Check", "switchField": "department", "cases": { "tech": "Tech Track", "biz": "Business Track" } } },
-        { "id": "j_tech", "type": "journey", "position": { "x": 1500, "y": 150 }, "data": { "label": "Tech Setup & Access", "journeyId": "jb-tech-setup" } },
-        { "id": "tag_tech", "type": "setTag", "position": { "x": 1800, "y": 150 }, "data": { "label": "Tag: Engineering", "addTag": "eng-team", "removeTag": "" } },
-        { "id": "j_biz", "type": "journey", "position": { "x": 1500, "y": 450 }, "data": { "label": "Sales/Ops Setup", "journeyId": "jb-biz-setup" } },
-        { "id": "del2", "type": "delay", "position": { "x": 2100, "y": 300 }, "data": { "label": "Wait: Day 30", "delayValue": 30, "delayUnit": "days" } },
-        { "id": "j2", "type": "journey", "position": { "x": 2400, "y": 300 }, "data": { "label": "30-Day Check-in", "journeyId": "jb-30d-check" } },
-        { "id": "del3", "type": "delay", "position": { "x": 2700, "y": 300 }, "data": { "label": "Wait: Day 90", "delayValue": 60, "delayUnit": "days" } },
-        { "id": "j3", "type": "journey", "position": { "x": 3000, "y": 300 }, "data": { "label": "Probation Review", "journeyId": "jb-90d-review" } },
-        { "id": "tag_final", "type": "setTag", "position": { "x": 3300, "y": 300 }, "data": { "label": "Status: Active", "addTag": "fully-ramped", "removeTag": "probation" } }
+        { "id": "start", "type": "trigger", "position": { "x": 50, "y": 300 }, "data": { "label": "ATS: Offer Signed", "method": "POST", "endpoint": "https://api.eva.com/hooks/offer-signed", "integrationActive": true } },
+        { "id": "create_user", "type": "registerEmployee", "position": { "x": 400, "y": 300 }, "data": { "label": "Create Eva Profile", "system": "Eva People" } },
+        { "id": "prov_google", "type": "systemUpdate", "position": { "x": 750, "y": 300 }, "data": { "label": "Provison G-Workspace", "system": "Google Workspace", "action": "create_account", "payload": "{ \"license\": \"enterprise\", \"org_unit\": \"/engineering\" }" } },
+        { "id": "wait_kit", "type": "delay", "position": { "x": 1100, "y": 300 }, "data": { "label": "Wait for Shipping", "delayValue": 2, "delayUnit": "days" } },
+        { "id": "verify_it", "type": "humanInTheLoop", "position": { "x": 1450, "y": 300 }, "data": { "label": "Verify IT Kit Delivery", "assignee": "IT Logistics", "description": "Confirm that the MacBook Pro and peripherals have been delivered to the candidate.", "timeout": 24 } },
+        { "id": "notify_done", "type": "systemUpdate", "position": { "x": 1850, "y": 150 }, "data": { "label": "Welcome Email", "system": "Slack", "action": "send_message", "payload": "{ \"channel\": \"#general\", \"text\": \"Welcome to the team!\" }" } },
+        { "id": "notify_fail", "type": "systemUpdate", "position": { "x": 1850, "y": 450 }, "data": { "label": "Escalate Delivery", "system": "Jira", "action": "create_ticket", "payload": "{ \"priority\": \"High\", \"summary\": \"Delivery Failed\" }" } }
     ]'::jsonb,
+    -- EDGES
     '[
-        { "id": "e1", "source": "csv1", "target": "reg1", "animated": true },
-        { "id": "e2", "source": "reg1", "target": "del1", "animated": true },
-        { "id": "e3", "source": "del1", "target": "j1", "animated": true },
-        { "id": "e4", "source": "j1", "target": "dec1", "animated": true },
-        { "id": "e5", "source": "dec1", "target": "j_tech", "animated": true, "label": "Tech" },
-        { "id": "e6", "source": "dec1", "target": "j_biz", "animated": true, "label": "Business" },
-        { "id": "e7", "source": "j_tech", "target": "tag_tech", "animated": true },
-        { "id": "e8", "source": "tag_tech", "target": "del2", "animated": true },
-        { "id": "e9", "source": "j_biz", "target": "del2", "animated": true },
-        { "id": "e10", "source": "del2", "target": "j2", "animated": true },
-        { "id": "e11", "source": "j2", "target": "del3", "animated": true },
-        { "id": "e12", "source": "del3", "target": "j3", "animated": true },
-        { "id": "e13", "source": "j3", "target": "tag_final", "animated": true }
+        { "id": "e1", "source": "start", "target": "create_user", "animated": true, "style": { "stroke": "#4f39f6", "strokeWidth": 3 } },
+        { "id": "e2", "source": "create_user", "target": "prov_google", "animated": true, "style": { "stroke": "#4f39f6", "strokeWidth": 3 } },
+        { "id": "e3", "source": "prov_google", "sourceHandle": "success", "target": "wait_kit", "animated": true, "label": "Success", "style": { "stroke": "#0ea5e9", "strokeWidth": 3 } },
+        { "id": "e4", "source": "wait_kit", "target": "verify_it", "animated": true, "style": { "stroke": "#4f39f6", "strokeWidth": 3 } },
+        { "id": "e5", "source": "verify_it", "sourceHandle": "approved", "target": "notify_done", "animated": true, "label": "Delivered", "style": { "stroke": "#10b981", "strokeWidth": 3 } },
+        { "id": "e6", "source": "verify_it", "sourceHandle": "rejected", "target": "notify_fail", "animated": true, "label": "Missing", "style": { "stroke": "#f43f5e", "strokeWidth": 3 } }
     ]'::jsonb
 ),
 (
-    'b0e3cd88-f190-4a23-a6c8-bbd3ff6aa1ec', -- <--- PASTE YOUR UUID HERE
-    'o-attract-select',
-    'Attraction & Selection Pipeline',
-    'Full recruiting cycle from talent pool to offer acceptance with SLA tracking.',
+    'b0e3cd88-f190-4a23-a6c8-bbd3ff6aa1ec', -- User ID
+    'o-perf-cycle',
+    'Quarterly Performance Cycle',
+    'Manages the end-to-end performance review process including calibration.',
     'published',
-    96,
-    1,
-    '2026-02-01 16:20:00+00',
+    100,
+    0,
+    '2026-02-13 14:00:00+00',
+    -- NODES
     '[
-        { "id": "trig1", "type": "trigger", "position": { "x": 0, "y": 300 }, "data": { "label": "External Trigger: Candidate Added", "method": "POST", "endpoint": "https://api.ats.com/webhook/candidate", "integrationActive": true } },
-        { "id": "tag1", "type": "setTag", "position": { "x": 300, "y": 300 }, "data": { "label": "Normalize: stage=talent", "addTag": "stage:talent", "removeTag": "" } },
-        { "id": "dec1", "type": "decision", "position": { "x": 600, "y": 300 }, "data": { "label": "Has req_id?", "switchField": "req_id", "cases": { "no": "No Req", "yes": "Has Req" } } },
-        { "id": "j_pool", "type": "journey", "position": { "x": 900, "y": 100 }, "data": { "label": "Assign to Pool + Ask Position", "journeyId": "jb-pool-assign" } },
-        { "id": "j_reach", "type": "journey", "position": { "x": 900, "y": 500 }, "data": { "label": "Outreach / Acknowledge", "journeyId": "jb-outreach" } },
-        { "id": "del1", "type": "delay", "position": { "x": 1200, "y": 500 }, "data": { "label": "Wait 2 days", "delayValue": 2, "delayUnit": "days" } },
-        { "id": "dec2", "type": "decision", "position": { "x": 1500, "y": 500 }, "data": { "label": "Replied?", "switchField": "replied", "cases": { "no": "No Reply", "yes": "Replied" } } },
-        { "id": "j_fup1", "type": "journey", "position": { "x": 1500, "y": 700 }, "data": { "label": "Follow-up 1", "journeyId": "jb-fup-1" } },
-        { "id": "j_triage", "type": "journey", "position": { "x": 1800, "y": 300 }, "data": { "label": "Triage Call & Scorecard", "journeyId": "jb-triage" } },
-        { "id": "tag_stg1", "type": "setTag", "position": { "x": 2100, "y": 300 }, "data": { "label": "stage=interview", "addTag": "stage:interview", "removeTag": "stage:triage" } },
-        { "id": "dec_tr", "type": "decision", "position": { "x": 2400, "y": 300 }, "data": { "label": "Track Check", "switchField": "track", "cases": { "tech": "Tech", "biz": "Business" } } },
-        { "id": "j_int_tech", "type": "journey", "position": { "x": 2700, "y": 200 }, "data": { "label": "Tech Interview Pack", "journeyId": "jb-int-tech" } },
-        { "id": "j_int_biz", "type": "journey", "position": { "x": 2700, "y": 400 }, "data": { "label": "Biz Interview Pack", "journeyId": "jb-int-biz" } },
-        { "id": "j_comm", "type": "journey", "position": { "x": 3000, "y": 300 }, "data": { "label": "Hiring Committee", "journeyId": "jb-hiring-committee" } },
-        { "id": "dec_app", "type": "decision", "position": { "x": 3300, "y": 300 }, "data": { "label": "Approved?", "switchField": "decision", "cases": { "yes": "Approved", "no": "Rejected" } } },
-        { "id": "tag_off", "type": "setTag", "position": { "x": 3600, "y": 300 }, "data": { "label": "stage=offer_sent", "addTag": "stage:offer_sent", "removeTag": "stage:interview" } },
-        { "id": "dec_typ", "type": "decision", "position": { "x": 3900, "y": 300 }, "data": { "label": "Contract Type", "switchField": "contract_type", "cases": { "clt": "CLT", "pj": "PJ", "estagio": "Intern" } } },
-        { "id": "j_sign", "type": "journey", "position": { "x": 4200, "y": 300 }, "data": { "label": "Send Offer (e-sign)", "journeyId": "jb-send-offer" } },
-        { "id": "del_sg", "type": "delay", "position": { "x": 4500, "y": 300 }, "data": { "label": "Wait Sign 3d", "delayValue": 3, "delayUnit": "days" } },
-        { "id": "dec_sg", "type": "decision", "position": { "x": 4800, "y": 300 }, "data": { "label": "Offer Signed?", "switchField": "signed", "cases": { "yes": "Signed", "no": "Pending" } } },
-        { "id": "tag_win", "type": "setTag", "position": { "x": 5100, "y": 300 }, "data": { "label": "stage=offer_accepted", "addTag": "stage:offer_accepted", "removeTag": "stage:offer_sent" } },
-        { "id": "j_pre", "type": "triggerWorkflow", "position": { "x": 5400, "y": 300 }, "data": { "label": "Trigger Pre-boarding", "workflowId": "jb-trigger-onb" } }
+        { "id": "trig_q1", "type": "trigger", "position": { "x": 50, "y": 250 }, "data": { "label": "Sched: Q1 Cycle", "method": "CRON", "endpoint": "0 9 1 * *", "integrationActive": false } },
+        { "id": "gen_forms", "type": "systemUpdate", "position": { "x": 400, "y": 250 }, "data": { "label": "Generate Reviews", "system": "Eva Performance", "action": "bulk_create_reviews", "payload": "{ \"cycle\": \"Q1_2026\", \"template\": \"standard_eng\" }" } },
+        { "id": "mgr_review", "type": "humanInTheLoop", "position": { "x": 750, "y": 250 }, "data": { "label": "Manager Assessment", "assignee": "Direct Manager", "description": "Complete the skills assessment and leadership potential index.", "timeout": 72 } },
+        { "id": "calib_check", "type": "conditional", "position": { "x": 1150, "y": 250 }, "data": { "label": "Rating Tier?", "switchField": "final_score", "rules": [{ "id": "r1", "label": "High Perf (>4.5)", "field": "score", "operator": "gt", "value": "4.5" }, { "id": "r2", "label": "Low Perf (<2.0)", "field": "score", "operator": "lt", "value": "2.0" }] } },
+        { "id": "calc_bonus", "type": "systemUpdate", "position": { "x": 1550, "y": 100 }, "data": { "label": "Calculate Spot Bonus", "system": "Workday Finance", "action": "issue_payment", "payload": "{ \"percentage\": 0.10 }" } },
+        { "id": "perf_plan", "type": "humanInTheLoop", "position": { "x": 1550, "y": 400 }, "data": { "label": "Create PIP Plan", "assignee": "HRBP", "description": "Draft a Performance Improvement Plan for the employee.", "timeout": 48 } }
     ]'::jsonb,
+    -- EDGES
     '[
-        { "id": "e1", "source": "trig1", "target": "tag1" },
-        { "id": "e2", "source": "tag1", "target": "dec1" },
-        { "id": "e3", "source": "dec1", "target": "j_pool", "label": "No Req" },
-        { "id": "e4", "source": "dec1", "target": "j_reach", "label": "Has Req" },
-        { "id": "e5", "source": "j_reach", "target": "del1" },
-        { "id": "e6", "source": "del1", "target": "dec2" },
-        { "id": "e7", "source": "dec2", "target": "j_fup1", "label": "No Reply" },
-        { "id": "e8", "source": "dec2", "target": "j_triage", "label": "Replied" },
-        { "id": "e9", "source": "j_triage", "target": "tag_stg1" },
-        { "id": "e10", "source": "tag_stg1", "target": "dec_tr" },
-        { "id": "e11", "source": "dec_tr", "target": "j_int_tech", "label": "Tech" },
-        { "id": "e12", "source": "dec_tr", "target": "j_int_biz", "label": "Business" },
-        { "id": "e13", "source": "j_int_tech", "target": "j_comm" },
-        { "id": "e14", "source": "j_int_biz", "target": "j_comm" },
-        { "id": "e15", "source": "j_comm", "target": "dec_app" },
-        { "id": "e16", "source": "dec_app", "target": "tag_off", "label": "Approved" },
-        { "id": "e17", "source": "tag_off", "target": "dec_typ" },
-        { "id": "e18", "source": "dec_typ", "target": "j_sign", "label": "All types" },
-        { "id": "e19", "source": "j_sign", "target": "del_sg" },
-        { "id": "e20", "source": "del_sg", "target": "dec_sg" },
-        { "id": "e21", "source": "dec_sg", "target": "tag_win", "label": "Signed" },
-        { "id": "e22", "source": "tag_win", "target": "j_pre" }
+        { "id": "e1", "source": "trig_q1", "target": "gen_forms", "animated": true, "style": { "stroke": "#4f39f6", "strokeWidth": 3 } },
+        { "id": "e2", "source": "gen_forms", "sourceHandle": "success", "target": "mgr_review", "animated": true, "style": { "stroke": "#0ea5e9", "strokeWidth": 3 } },
+        { "id": "e3", "source": "mgr_review", "sourceHandle": "approved", "target": "calib_check", "animated": true, "label": "Completed", "style": { "stroke": "#10b981", "strokeWidth": 3 } },
+        { "id": "e4", "source": "calib_check", "sourceHandle": "r1", "target": "calc_bonus", "animated": true, "label": "High Performer", "style": { "stroke": "#4f39f6", "strokeWidth": 3 } },
+        { "id": "e5", "source": "calib_check", "sourceHandle": "r2", "target": "perf_plan", "animated": true, "label": "Needs Improv.", "style": { "stroke": "#4f39f6", "strokeWidth": 3 } }
     ]'::jsonb
 ),
 (
-    'b0e3cd88-f190-4a23-a6c8-bbd3ff6aa1ec', -- <--- PASTE YOUR UUID HERE
-    'o-off-risk',
-    'Offboarding: Risk & Compliance',
-    'Secure exit process handling both immediate termination and planned handovers.',
+    'b0e3cd88-f190-4a23-a6c8-bbd3ff6aa1ec', -- User ID
+    'o-offboarding',
+    'Secure Offboarding Protocol',
+    'Ensures immediate access revocation and asset recovery upon termination.',
     'draft',
     100,
     0,
     null,
+    -- NODES
     '[
-        { "id": "t_term", "type": "trigger", "position": { "x": 0, "y": 300 }, "data": { "label": "Termination Created", "method": "POST", "endpoint": "https://hris.api/term", "integrationActive": true } },
-        { "id": "tag_init", "type": "setTag", "position": { "x": 300, "y": 300 }, "data": { "label": "Init Case: stage=offboarding", "addTag": "stage:offboarding_open", "removeTag": "" } },
-        { "id": "dec_risk", "type": "decision", "position": { "x": 600, "y": 300 }, "data": { "label": "Risk Level?", "switchField": "risk_level", "cases": { "high": "High Risk / Immediate", "low": "Low Risk / Planned" } } },
-        { "id": "j_cut_now", "type": "journey", "position": { "x": 900, "y": 100 }, "data": { "label": "Immediate Access Cut", "journeyId": "jb-cut-access-now" } },
-        { "id": "tag_cut_ok", "type": "setTag", "position": { "x": 1200, "y": 100 }, "data": { "label": "access_cut_status=done", "addTag": "access:revoked", "removeTag": "access:active" } },
-        { "id": "j_notify", "type": "journey", "position": { "x": 1500, "y": 100 }, "data": { "label": "Notify Stakeholders", "journeyId": "jb-notify-stake" } },
-        { "id": "j_assets", "type": "journey", "position": { "x": 1800, "y": 100 }, "data": { "label": "Assets Retrieval Logistics", "journeyId": "jb-assets-log" } },
-        { "id": "j_plan", "type": "journey", "position": { "x": 900, "y": 500 }, "data": { "label": "Handover Plan & Knowledge", "journeyId": "jb-handover" } },
-        { "id": "del_last", "type": "delay", "position": { "x": 1200, "y": 500 }, "data": { "label": "Wait until Last Day", "delayValue": 1, "delayUnit": "days" } },
-        { "id": "j_cut_end", "type": "journey", "position": { "x": 1500, "y": 500 }, "data": { "label": "Access Cut (EOD)", "journeyId": "jb-cut-access-eod" } },
-        { "id": "j_return", "type": "journey", "position": { "x": 1800, "y": 500 }, "data": { "label": "Asset Return (On-site)", "journeyId": "jb-asset-return-onsite" } },
-        { "id": "j_legal", "type": "journey", "position": { "x": 2100, "y": 300 }, "data": { "label": "DP/Legal Package", "journeyId": "jb-dp-legal" } },
-        { "id": "dec_wkr", "type": "decision", "position": { "x": 2400, "y": 300 }, "data": { "label": "Worker Type", "switchField": "worker_type", "cases": { "clt": "CLT", "pj": "PJ", "intern": "Intern" } } },
-        { "id": "j_clt", "type": "journey", "position": { "x": 2700, "y": 200 }, "data": { "label": "CLT Rescisão", "journeyId": "jb-clt-term" } },
-        { "id": "j_pj", "type": "journey", "position": { "x": 2700, "y": 400 }, "data": { "label": "Contract Close", "journeyId": "jb-pj-close" } },
-        { "id": "j_close", "type": "journey", "position": { "x": 3000, "y": 300 }, "data": { "label": "Close Case w/ Evidence", "journeyId": "jb-case-close" } }
+        { "id": "term_event", "type": "trigger", "position": { "x": 50, "y": 300 }, "data": { "label": "HRIS: Termination", "method": "POST", "endpoint": "/hooks/term", "integrationActive": true } },
+        { "id": "revoke_okta", "type": "systemUpdate", "position": { "x": 400, "y": 300 }, "data": { "label": "Revoke SSO Access", "system": "Okta", "action": "deactivate_user", "payload": "{ \"immediate\": true }" } },
+        { "id": "wipe_device", "type": "systemUpdate", "position": { "x": 750, "y": 300 }, "data": { "label": "Wipe Corporate Mobile", "system": "Jamf MDM", "action": "remote_wipe", "payload": "{ \"device_type\": \"all\" }" } },
+        { "id": "asset_col", "type": "humanInTheLoop", "position": { "x": 1100, "y": 300 }, "data": { "label": "Collect Physical Assets", "assignee": "Office Manager", "description": "Retrieve Laptop (Tag #232), Badge, and Monitor.", "timeout": 24 } },
+        { "id": "pay_calc", "type": "humanInTheLoop", "position": { "x": 1450, "y": 300 }, "data": { "label": "Final Severance Calc", "assignee": "Payroll Specialist", "description": "Calculate pro-rated vacation and severance package.", "timeout": 48 } },
+        { "id": "archive_emp", "type": "systemUpdate", "position": { "x": 1800, "y": 300 }, "data": { "label": "Archive Employee Record", "system": "Eva People", "action": "archive_profile", "payload": "{ \"reason\": \"termination\" }" } }
     ]'::jsonb,
+    -- EDGES
     '[
-        { "id": "e1", "source": "t_term", "target": "tag_init" },
-        { "id": "e2", "source": "tag_init", "target": "dec_risk" },
-        { "id": "e3", "source": "dec_risk", "target": "j_cut_now", "label": "High Risk" },
-        { "id": "e4", "source": "j_cut_now", "target": "tag_cut_ok" },
-        { "id": "e5", "source": "tag_cut_ok", "target": "j_notify" },
-        { "id": "e6", "source": "j_notify", "target": "j_assets" },
-        { "id": "e7", "source": "j_assets", "target": "j_legal" },
-        { "id": "e8", "source": "dec_risk", "target": "j_plan", "label": "Low Risk" },
-        { "id": "e9", "source": "j_plan", "target": "del_last" },
-        { "id": "e10", "source": "del_last", "target": "j_cut_end" },
-        { "e11": "source": "j_cut_end", "target": "j_return" },
-        { "e12": "source": "j_return", "target": "j_legal" },
-        { "id": "e13", "source": "j_legal", "target": "dec_wkr" },
-        { "id": "e14", "source": "dec_wkr", "target": "j_clt", "label": "CLT" },
-        { "id": "e15", "source": "dec_wkr", "target": "j_pj", "label": "PJ" },
-        { "id": "e16", "source": "j_clt", "target": "j_close" },
-        { "id": "e17", "source": "j_pj", "target": "j_close" }
+        { "id": "e1", "source": "term_event", "target": "revoke_okta", "animated": true, "style": { "stroke": "#4f39f6", "strokeWidth": 3 } },
+        { "id": "e2", "source": "revoke_okta", "sourceHandle": "success", "target": "wipe_device", "animated": true, "style": { "stroke": "#0ea5e9", "strokeWidth": 3 } },
+        { "id": "e3", "source": "wipe_device", "sourceHandle": "success", "target": "asset_col", "animated": true, "style": { "stroke": "#0ea5e9", "strokeWidth": 3 } },
+        { "id": "e4", "source": "asset_col", "sourceHandle": "approved", "target": "pay_calc", "animated": true, "label": "Collected", "style": { "stroke": "#10b981", "strokeWidth": 3 } },
+        { "id": "e5", "source": "pay_calc", "sourceHandle": "approved", "target": "archive_emp", "animated": true, "label": "Calculated", "style": { "stroke": "#10b981", "strokeWidth": 3 } }
     ]'::jsonb
 );
