@@ -12,11 +12,10 @@ O **People Ops Orchestrator** permite desenhar e automatizar jornadas complexas 
 - **Hub de Integrações**: Gerenciamento centralizado de conexões (Gupy, Eva, LG, etc).
 - **Monitoramento em Tempo Real**: Visualize a execução de cada colaborador no fluxo.
 - **Ricas Bibliotecas de Nós**:
-  - `Trigger`: Webhooks e API polling.
-  - `Journey`: Dispara jornadas na Eva.
-  - `Decision`: Lógica condicional (Se/Então).
-  - `Tag Manager`: Normalização de dados e controle de estado.
-  - `Delay`: Pausas temporais inteligentes (dias úteis, datas específicas).
+  - `Start Flow`: Inicia a jornada baseada em fluxos existentes.
+  - `Conditional`: Lógica condicional (Se/Então) baseada em dados do colaborador.
+  - `Human In The Loop`: Tarefas manuais de aprovação e input.
+  - `Notification`: Envio de mensagens (Email, Slack, WhatsApp) e tratamento de erros.
 
 ## 🛠️ Stack Tecnológica
 

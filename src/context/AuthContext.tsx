@@ -30,7 +30,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check active session
+        // BYPASS LOGIN FOR DEVELOPMENT verify
+        const mockUser: User = {
+            id: 'dev-user-id',
+            name: 'People Ops Manager',
+            email: 'manager@company.com',
+            company: 'Tech Corp',
+            avatar: 'https://ui-avatars.com/api/?background=4f39f6&color=fff&name=PO',
+            plan: {
+                name: 'Enterprise',
+                maxOrchestrators: 999,
+                expiresAt: '2099-12-31'
+            }
+        };
+        setUser(mockUser);
+        setLoading(false);
+        return;
+
+        /* Supabase Login Logic DISABLED for now
         supabase.auth.getSession().then(({ data, error }) => {
             if (error) {
                 console.error("Session check error:", error);
@@ -46,20 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }).finally(() => {
             setLoading(false);
         });
-
-        // Listen for changes
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (session?.user) {
-                mapUser(session.user).then(u => setUser(u));
-            } else {
-                setUser(null);
-            }
-            setLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
+        */
     }, []);
 
     const mapUser = async (supabaseUser: any): Promise<User> => {
